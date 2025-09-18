@@ -1,0 +1,23 @@
+name: tab
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - spacy
+  - tqdm
+  - intervaltree
+  - scikit-learn
+  - matplotlib
+  - typing_extensions
+  - transformers
+  - tokenizers
+  - pip:
+      - datasets
+      - torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+      - https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.7.1/en_core_web_md-3.7.1-py3-none-any.whl
+

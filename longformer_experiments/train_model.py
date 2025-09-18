@@ -11,7 +11,7 @@ from transformers import PreTrainedTokenizerFast
 import json
 import torch
 from torch.utils.data.dataloader import DataLoader
-from transformers import AdamW
+from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
 from sklearn.metrics import classification_report
 import tqdm
