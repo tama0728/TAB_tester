@@ -222,32 +222,31 @@ def create_tab_format_json(doc_id, text, masked_text, masked_spans, dataset_type
         }
     }]
 
-def apply_masking(text, masked_spans, mask_char="[MASK]"):
+def apply_masking(text, masked_spans):
     """텍스트에 마스킹을 적용합니다."""
     if not masked_spans:
         return text
 
     # 구간을 역순으로 정렬하여 뒤에서부터 마스킹
     sorted_spans = sorted(masked_spans, key=lambda x: x["start_offset"], reverse=True)
-
     masked_text = text
     for span in sorted_spans:
         start, end = span["start_offset"], span["end_offset"]
-        masked_text = masked_text[:start] + mask_char + masked_text[end:]
+        masked_text = masked_text[:start] + f"[{span['entity_type']}]" + masked_text[end:]
 
     return masked_text
 
 def print_results(text, masked_spans, tab_json, masked_text):
     """결과를 출력합니다."""
     print(f"\nFound {len(masked_spans)} masked spans (TAB format):")
-    for i, span in enumerate(masked_spans):
-        print(f"Entity {i+1}:")
-        print(f"  - entity_type: {span['entity_type']}")
-        print(f"  - span_text: '{span['span_text']}'")
-        print(f"  - start_offset: {span['start_offset']}")
-        print(f"  - end_offset: {span['end_offset']}")
-        print(f"  - confidence: {span['confidence']:.3f}")
-        print()
+    # for i, span in enumerate(masked_spans):
+    #     print(f"Entity {i+1}:")
+    #     print(f"  - entity_type: {span['entity_type']}")
+    #     print(f"  - span_text: '{span['span_text']}'")
+    #     print(f"  - start_offset: {span['start_offset']}")
+    #     print(f"  - end_offset: {span['end_offset']}")
+    #     print(f"  - confidence: {span['confidence']:.3f}")
+    #     print()
 
     print("TAB format JSON structure:")
     print(f"Document ID: {tab_json[0]['doc_id']}")
