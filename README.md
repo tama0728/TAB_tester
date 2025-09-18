@@ -2,7 +2,7 @@
 
 > **Enhanced version** of the [Text Anonymization Benchmark (TAB)](https://github.com/NorskRegnesentral/text-anonymisation-benchmark) with ready-to-use inference capabilities.
 
-This repository provides a **trained Longformer model** and **complete inference pipeline** for text anonymization tasks. Simply load your text and get anonymized results with detailed entity information in TAB format.
+This repository provides a **trained Longformer model** and **complete inference pipeline** for text anonymization tasks. Simply provide your text file and get anonymized results with detailed entity information in TAB format.
 
 ## 🚀 Quick Start
 
@@ -10,8 +10,8 @@ This repository provides a **trained Longformer model** and **complete inference
 
 ```bash
 # Clone the repository
-git clone https://github.com/tama0728/TAB_tester.git
-cd TAB_tester
+git clone https://github.com/your-username/text-anonymization-benchmark.git
+cd text-anonymization-benchmark
 
 # Create conda environment (includes spaCy model)
 conda env create -f environment.yml
@@ -28,131 +28,170 @@ python download_data.py
 ### 3. Run Text Anonymization
 
 ```bash
-# Test with sample text
-python test.py
+# Create a text file
+echo "John Smith works at Microsoft Corporation in Seattle." > sample.txt
 
-# Or modify data.txt with your own text
-echo "Your text here" > data.txt
-python test.py
+# Run anonymization with file path
+python test.py sample.txt
+
+# Specify output format
+python test.py sample.txt --format json  # TAB format JSON (default)
+python test.py sample.txt --format txt   # Masked text only
+
+# Custom output file
+python test.py sample.txt -o my_results.json
 ```
 
 **That's it!** The script will:
 - ✅ Load the trained Longformer model
 - ✅ Detect personal identifiers in your text
 - ✅ Classify entities (PERSON, ORG, LOC, etc.)
-- ✅ Link co-references
 - ✅ Generate TAB-format JSON output
-- ✅ Create masked text with `[MASK]` tokens
+- ✅ Create masked text with entity-specific markers
 
 ## 📊 What You Get
 
 ### Console Output
 ```
+Loaded text from: sample.txt
+Text length: 53 characters
+Loading model and tokenizer...
+Model loaded on device: cuda
+
 Found 3 masked spans (TAB format):
-Entity 1:
-  - entity_type: PERSON
-  - entity_mention_id: TEST_DOC_em1
-  - entity_id: TEST_DOC_e1
-  - start_offset: 0
-  - end_offset: 10
-  - span_text: 'John Smith'
-  - identifier_type: DIRECT
-  - confidential_status: NOT_CONFIDENTIAL
-  - edit_type: insert
-  - confidence: 0.892
+Document ID: sample
+Number of entity mentions: 3
+
+Text masking results:
+Original text: John Smith works at Microsoft Corporation in Seattle.
+Masked text: [PERSON] works at [ORG] in [GPE].
 ```
 
-### JSON Output (`test_predictions.json`)
+### JSON Output (`sample_predictions.json`)
 ```json
-{
-  "doc_id": "TEST_DOC",
-  "text": "John Smith works at Microsoft Corporation...",
+[{
+  "doc_id": "sample",
+  "text": "John Smith works at Microsoft Corporation in Seattle.",
+  "masked_text": "[PERSON] works at [ORG] in [GPE].",
+  "dataset_type": "dev",
+  "meta": {},
+  "quality_checked": false,
+  "task": null,
   "annotations": {
     "annotator_1": {
       "entity_mentions": [
         {
           "entity_type": "PERSON",
-          "entity_mention_id": "TEST_DOC_em1",
+          "entity_mention_id": "sample_em1",
           "start_offset": 0,
           "end_offset": 10,
           "span_text": "John Smith",
           "edit_type": "insert",
           "confidential_status": "NOT_CONFIDENTIAL",
           "identifier_type": "DIRECT",
-          "entity_id": "TEST_DOC_e1"
+          "entity_id": "sample_e1"
+        },
+        {
+          "entity_type": "ORG",
+          "entity_mention_id": "sample_em2",
+          "start_offset": 20,
+          "end_offset": 41,
+          "span_text": "Microsoft Corporation",
+          "edit_type": "insert",
+          "confidential_status": "NOT_CONFIDENTIAL",
+          "identifier_type": "DIRECT",
+          "entity_id": "sample_e2"
+        },
+        {
+          "entity_type": "GPE",
+          "entity_mention_id": "sample_em3",
+          "start_offset": 45,
+          "end_offset": 52,
+          "span_text": "Seattle",
+          "edit_type": "insert",
+          "confidential_status": "NOT_CONFIDENTIAL",
+          "identifier_type": "DIRECT",
+          "entity_id": "sample_e3"
         }
       ]
     }
   }
-}
+}]
 ```
 
-### Masked Text
+### Masked Text Output (`sample_masked.txt`)
 ```
-Original: "John Smith works at Microsoft Corporation in Seattle."
-Masked:   "[MASK] works at [MASK] in [MASK]."
+[PERSON] works at [ORG] in [GPE].
 ```
 
 ## 🔧 Advanced Usage
 
-### Custom Text Processing
+### Command Line Options
 
-```python
-# Modify test.py to process multiple texts
-texts = [
-    "Alice Johnson is a lawyer in New York.",
-    "The company Microsoft was founded by Bill Gates."
-]
+```bash
+# Get help
+python test.py -h
 
-for i, text in enumerate(texts):
-    # Save text to data.txt
-    with open('data.txt', 'w') as f:
-        f.write(text)
-    
-    # Run inference
-    import subprocess
-    subprocess.run(['python', 'test.py'])
-    
-    # Load results
-    import json
-    with open('test_predictions.json', 'r') as f:
-        results = json.load(f)
-    
-    print(f"Text {i+1}: Found {len(results[0]['annotations']['annotator_1']['entity_mentions'])} entities")
+# Different output formats
+python test.py input.txt --format json  # Full TAB format JSON
+python test.py input.txt --format txt   # Masked text only
+
+# Custom output file
+python test.py input.txt -o results.json
+python test.py input.txt -o masked.txt --format txt
 ```
 
-### Model Configuration
+### Batch Processing
 
-The model uses these default settings:
-- **Model**: `allenai/longformer-base-4096`
-- **Max Length**: 4096 tokens
-- **Labels**: MASK detection (B-MASK, I-MASK, O)
-- **Device**: Auto-detects CUDA/CPU
+```bash
+# Process multiple files
+for file in *.txt; do
+    python test.py "$file"
+done
 
-To modify settings, edit `test.py`:
+# Or create a batch script
+echo "Processing documents..."
+python test.py document1.txt -o doc1_results.json
+python test.py document2.txt -o doc2_results.json
+python test.py document3.txt -o doc3_results.json
+```
+
+### Python Integration
+
 ```python
-# Change model
-bert = "allenai/longformer-base-4096"  # or other Longformer model
+import subprocess
+import json
 
-# Adjust max length
-tokens = tokenizer(
-    text,
-    max_length=2048,  # Reduce for faster processing
-    truncation=True,
-    padding=True,
-    return_offsets_mapping=True,
-    add_special_tokens=True
-)
+def anonymize_text_file(input_file, output_file=None):
+    """Anonymize a text file and return results."""
+    cmd = ['python', 'test.py', input_file]
+    if output_file:
+        cmd.extend(['-o', output_file])
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode == 0:
+        # Load results
+        output_file = output_file or f"{input_file.split('.')[0]}_predictions.json"
+        with open(output_file, 'r') as f:
+            return json.load(f)
+    else:
+        print(f"Error: {result.stderr}")
+        return None
+
+# Usage
+results = anonymize_text_file('my_document.txt')
+if results:
+    print(f"Found {len(results[0]['annotations']['annotator_1']['entity_mentions'])} entities")
 ```
 
 ## 📁 Project Structure
 
 ```
 text-anonymization-benchmark/
-├── test.py                      # 🎯 Main inference script
+├── test.py                      # 🎯 Main inference script (NEW!)
 ├── environment.yml              # 📦 Complete conda environment
-├── data.txt                     # 📝 Input text file
-├── test_predictions.json        # 📊 Output results
+├── download_data.py             # 📥 Model download script
 ├── longformer_experiments/
 │   ├── long_model.pt           # 🧠 Trained model weights
 │   ├── train_model.py          # 🏋️ Training script
@@ -174,19 +213,27 @@ text-anonymization-benchmark/
 - **Training**: Fine-tuned on ECHR court cases
 
 ### Entity Processing Pipeline
-1. **Tokenization**: Longformer tokenizer with offset mapping
-2. **Inference**: Trained model predicts MASK labels
-3. **Span Extraction**: Convert token predictions to character spans
-4. **Entity Classification**: Use spaCy/Annotator for entity types
-5. **Entity Linking**: Co-reference resolution by text similarity
-6. **Output Generation**: TAB-format JSON with all metadata
+1. **Input**: Text file specified via command line
+2. **Tokenization**: Longformer tokenizer with offset mapping
+3. **Inference**: Trained model predicts MASK labels
+4. **Span Extraction**: Convert token predictions to character spans
+5. **Entity Classification**: Use spaCy/Annotator for entity types (PERSON, ORG, GPE, etc.)
+6. **Masking**: Replace entities with type-specific markers `[PERSON]`, `[ORG]`, etc.
+7. **Output Generation**: TAB-format JSON with all metadata + masked text
+
+### Key Features
+- **Command Line Interface**: Easy file-based processing
+- **Flexible Output**: JSON (TAB format) or plain masked text
+- **Entity-Specific Masking**: Uses actual entity types instead of generic `[MASK]`
+- **Automatic File Naming**: Generates output files based on input filename
+- **Error Handling**: Comprehensive validation and error messages
 
 ### Dependencies
 - **PyTorch**: Deep learning framework
 - **Transformers**: Hugging Face Longformer
 - **spaCy**: Named Entity Recognition
-- **NumPy/Pandas**: Data processing
-- **scikit-learn**: ML utilities
+- **NumPy**: Array processing
+- **argparse**: Command line parsing
 
 All dependencies are automatically installed via `environment.yml`.
 
@@ -194,41 +241,60 @@ All dependencies are automatically installed via `environment.yml`.
 
 The trained model provides:
 - **Entity Detection**: Identifies personal identifiers
-- **Entity Classification**: PERSON, ORG, LOC, MISC, etc.
+- **Entity Classification**: PERSON, ORG, GPE, LOC, MISC, etc.
 - **Confidence Scores**: Reliability metrics for each prediction
-- **Co-reference Resolution**: Links mentions of the same entity
+- **Smart Masking**: Type-aware anonymization
+
+### Entity Types Supported
+- **PERSON**: Personal names
+- **ORG**: Organizations, companies
+- **GPE**: Geopolitical entities (countries, cities)
+- **LOC**: Locations, landmarks
+- **MISC**: Miscellaneous entities
+- **And more** (based on spaCy's entity recognition)
 
 ## 🔍 Troubleshooting
 
 ### Common Issues
 
-**1. CUDA out of memory**
-```python
-# In test.py, change device to CPU
-device = 'cpu'  # instead of 'cuda'
+**1. File not found**
+```bash
+# Ensure your input file exists
+ls -la your_file.txt
+python test.py your_file.txt
 ```
 
-**2. spaCy model not found**
+**2. CUDA out of memory**
+```python
+# The script automatically detects and uses available hardware
+# For CPU-only processing, it will automatically fall back
+```
+
+**3. spaCy model not found**
 ```bash
 # Already included in environment.yml, but if needed:
 python -m spacy download en_core_web_md
 ```
 
-**3. Model file missing**
+**4. Model file missing**
 ```bash
-# Ensure long_model.pt exists
+# Download the trained model
+python download_data.py
+# Verify it exists
 ls longformer_experiments/long_model.pt
 ```
 
-**4. Empty predictions**
-- Check if your text contains personal identifiers
-- Try with sample text: "John Smith works at Microsoft Corporation"
+**5. Permission errors**
+```bash
+# Ensure write permissions for output directory
+chmod 755 .
+```
 
 ### Performance Tips
 
-- **Faster processing**: Reduce `max_length` to 2048 or 1024
-- **Better accuracy**: Use longer texts (more context)
-- **Memory issues**: Process texts in smaller chunks
+- **Faster processing**: Use shorter texts or process in chunks
+- **Better accuracy**: Provide more context (longer texts)
+- **Memory optimization**: Script automatically handles device selection
 
 ## 📚 Dataset Information
 
@@ -237,6 +303,23 @@ Based on the **Text Anonymization Benchmark (TAB)**:
 - **Size**: 1,268 manually annotated documents
 - **Format**: Standoff JSON with entity mentions
 - **Categories**: PERSON, ORG, LOC, MISC, DATETIME, QUANTITY, CODE
+
+## 🆕 What's New
+
+### Enhanced Features
+- **File-based Processing**: No need to modify source code
+- **Command Line Interface**: Professional CLI with argparse
+- **Flexible Output Formats**: JSON (TAB) or plain text
+- **Smart Masking**: Entity-type specific replacement (`[PERSON]`, `[ORG]`, etc.)
+- **Automatic File Naming**: Intelligent output file generation
+- **Better Error Handling**: Comprehensive validation and user feedback
+- **Modular Design**: Clean function-based architecture
+
+### Usage Improvements
+- **Zero Code Changes**: Process any text file directly
+- **Batch Processing Ready**: Easy integration into workflows
+- **Professional Output**: Clean, structured results
+- **Development Friendly**: Importable as a Python module
 
 ## 🔗 References
 
@@ -251,8 +334,8 @@ MIT License - see original repository for details.
 ## 🙏 Acknowledgments
 
 - **Original Authors**: Ildikó Pilán, Pierre Lison, Lilja Øvrelid, Anthi Papadopoulou, David Sánchez, Montserrat Batet
-- **Enhanced Version**: Ready-to-use inference pipeline and improved usability
+- **Enhanced Version**: Professional CLI interface with file-based processing and improved usability
 
 ---
 
-**Ready to anonymize text?** Just run `python test.py` and you're done! 🎉
+**Ready to anonymize text?** Create a text file and run `python test.py your_file.txt` - it's that simple! 🎉
