@@ -10,8 +10,8 @@ This repository provides a **trained Longformer model** and **complete inference
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/text-anonymization-benchmark.git
-cd text-anonymization-benchmark
+git clone https://github.com/tama0728/TAB_tester.git
+cd TAB_tester
 
 # Create conda environment (includes spaCy model)
 conda env create -f environment.yml
