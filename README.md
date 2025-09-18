@@ -18,7 +18,14 @@ conda env create -f environment.yml
 conda activate tab
 ```
 
-### 2. Run Text Anonymization
+### 2. Download Model File
+
+```bash
+# Download the trained model (568MB)
+python download_data.py
+```
+
+### 3. Run Text Anonymization
 
 ```bash
 # Test with sample text
