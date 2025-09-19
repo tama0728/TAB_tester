@@ -193,34 +193,42 @@ def process_entities(text, predictions, offset_mapping, confidence_scores, doc_i
 
 def create_tab_format_json(doc_id, text, masked_text, masked_spans, dataset_type="dev", meta={}, quality_checked=False, task=None):
     """TAB 형식의 JSON 구조를 생성합니다."""
-    entity_mentions = []
+    entities = []
     for span in masked_spans:
-        entity_mentions.append({
+        entities.append({
+            "span_text": span["span_text"],
             "entity_type": span["entity_type"],
-            "entity_mention_id": span["entity_mention_id"],
             "start_offset": span["start_offset"],
             "end_offset": span["end_offset"],
-            "span_text": span["span_text"],
-            "edit_type": span["edit_type"],
-            "confidential_status": span["confidential_status"],
+            "entity_id": span["entity_id"],
+            "span_id": span["entity_mention_id"],
             "identifier_type": span["identifier_type"],
-            "entity_id": span["entity_id"]
+            "edit_type": span["edit_type"],
+            "annotator": ""
         })
 
-    return [{
-        "doc_id": doc_id,
-        "text": text,
-        "masked_text": masked_text,
-        "dataset_type": dataset_type,
-        "meta": meta,
-        "quality_checked": quality_checked,
-        "task": task,
-        "annotations": {
-            "annotator_1": {
-                "entity_mentions": entity_mentions
+    return {
+        "metadata": 
+        {
+            "data_id": doc_id,
+            "number_of_subjects": 1,
+            "notes": "entity_data_original",
+            "provenance": {
+                "year": meta.get('year', 'unknown'),
+                "legal_branch": meta.get('legal_branch', 'unknown'),
+                "articles": meta.get('articles', []),
+                "countries": meta.get('countries', []),
+                "applicant": meta.get('applicant', 'unknown'),
+                "doc_id": doc_id,
+                "annotator": meta.get('annotator', 'system'),
+                "dataset_type": dataset_type,
+                "task": meta.get('task', 'anonymization'),
+                "quality_checked": quality_checked
             }
-        }
-    }]
+        },
+        "text": text,
+        "entities": entities
+    }
 
 def apply_masking(text, masked_spans):
     """텍스트에 마스킹을 적용합니다."""
@@ -263,12 +271,13 @@ def save_results(args, tab_json_list):
         output_file = args.output
     else:
         base_name = os.path.splitext(args.input_file)[0]
-        output_file = f"{base_name}_predictions.json"
+        output_file = f"{base_name}_predictions.jsonl"
 
     # 결과 저장
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(tab_json_list, f, ensure_ascii=False, indent=2)
+            for item in tab_json_list:
+                f.write(json.dumps(item, ensure_ascii=False) + '\n')
         print(f"\nTAB format results saved to '{output_file}'")
         print(f"Processing completed successfully!")
 
@@ -287,7 +296,7 @@ def main():
         sys.exit(1)
 
     text_list = []
-    json = True
+    is_json_file = True
     # 텍스트 파일 읽기
     try:
         if args.input_file.endswith('.json'):
@@ -297,7 +306,7 @@ def main():
                     # "doc_id":"text" 형식으로 저장
                     text_list.append(item)
         else:
-            json = False
+            is_json_file = False
             with open(args.input_file, 'r', encoding='utf-8') as f:
                 text_list.append({"doc_id": args.input_file, "text": f.read()})
         print(f"Loaded text from: {args.input_file}")
