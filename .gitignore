@@ -116,8 +116,6 @@ mlruns/
 # Data files
 *.csv
 *.tsv
-*.json
-*.jsonl
 *.parquet
 *.feather
 *.arrow
