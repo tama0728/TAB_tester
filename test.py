@@ -191,7 +191,7 @@ def process_entities(text, predictions, offset_mapping, confidence_scores, doc_i
 
     return masked_spans
 
-def create_tab_format_json(doc_id, text, masked_text, masked_spans, dataset_type="dev"):
+def create_tab_format_json(doc_id, text, masked_text, masked_spans, dataset_type="dev", meta={}, quality_checked=False, task=None):
     """TAB 형식의 JSON 구조를 생성합니다."""
     entity_mentions = []
     for span in masked_spans:
@@ -212,9 +212,9 @@ def create_tab_format_json(doc_id, text, masked_text, masked_spans, dataset_type
         "text": text,
         "masked_text": masked_text,
         "dataset_type": dataset_type,
-        "meta": {},
-        "quality_checked": False,
-        "task": None,
+        "meta": meta,
+        "quality_checked": quality_checked,
+        "task": task,
         "annotations": {
             "annotator_1": {
                 "entity_mentions": entity_mentions
@@ -256,29 +256,20 @@ def print_results(text, masked_spans, tab_json, masked_text):
     print("Original text preview:", text[:200] + "..." if len(text) > 200 else text)
     print("Masked text preview:", masked_text[:200] + "..." if len(masked_text) > 200 else masked_text)
 
-def save_results(args, tab_json, masked_text):
+def save_results(args, tab_json_list):
     """결과를 파일로 저장합니다."""
     # 출력 파일 경로 결정
     if args.output:
         output_file = args.output
     else:
         base_name = os.path.splitext(args.input_file)[0]
-        if args.format == 'json':
-            output_file = f"{base_name}_predictions.json"
-        else:
-            output_file = f"{base_name}_masked.txt"
+        output_file = f"{base_name}_predictions.json"
 
     # 결과 저장
     try:
-        if args.format == 'json':
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(tab_json, f, ensure_ascii=False, indent=2)
-            print(f"\nTAB format results saved to '{output_file}'")
-        else:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write(masked_text)
-            print(f"\nMasked text saved to '{output_file}'")
-
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(tab_json_list, f, ensure_ascii=False, indent=2)
+        print(f"\nTAB format results saved to '{output_file}'")
         print(f"Processing completed successfully!")
 
     except Exception as e:
@@ -295,12 +286,22 @@ def main():
         print(f"Error: Input file '{args.input_file}' not found!")
         sys.exit(1)
 
+    text_list = []
+    json = True
     # 텍스트 파일 읽기
     try:
-        with open(args.input_file, 'r', encoding='utf-8') as f:
-            text = f.read()
+        if args.input_file.endswith('.json'):
+            with open(args.input_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for item in data:
+                    # "doc_id":"text" 형식으로 저장
+                    text_list.append(item)
+        else:
+            json = False
+            with open(args.input_file, 'r', encoding='utf-8') as f:
+                text_list.append({"doc_id": args.input_file, "text": f.read()})
         print(f"Loaded text from: {args.input_file}")
-        print(f"Text length: {len(text)} characters")
+        print(f"Text length: {len(text_list)} documents")
     except Exception as e:
         print(f"Error reading file '{args.input_file}': {e}")
         sys.exit(1)
@@ -310,28 +311,38 @@ def main():
     model, tokenizer, device = load_model_and_tokenizer()
     print(f"Model loaded on device: {device}")
 
-    # 토큰화 및 예측
-    print("Tokenizing text and running inference...")
-    tokens, predictions, confidence_scores = tokenize_and_predict(text, model, tokenizer, device)
-    print("Predictions shape:", predictions.shape)
+    tab_json_list = []
+    masked_text_list = []
+    masked_spans_list = []
+    for text in text_list:
+        if not json:
+            meta = {}
+            quality_checked = False
+            task = None
+        else:
+            meta = text['meta']
+            quality_checked = text['quality_checked']
+            task = text['task']
+        # 토큰화 및 예측
+        print("Tokenizing text and running inference...")
+        tokens, predictions, confidence_scores = tokenize_and_predict(text['text'], model, tokenizer, device)
+        print("Predictions shape:", predictions.shape)
 
-    # 엔티티 처리
-    print("Processing entities...")
-    masked_spans = process_entities(text, predictions, tokens["offset_mapping"], confidence_scores)
+        # 엔티티 처리
+        print("Processing entities...")
+        masked_spans = process_entities(text['text'], predictions, tokens["offset_mapping"], confidence_scores)
 
 
-    # 마스킹된 텍스트 생성
-    masked_text = apply_masking(text, masked_spans)
+        # 마스킹된 텍스트 생성
+        masked_text = apply_masking(text['text'], masked_spans)
 
-    # TAB 형식 JSON 생성
-    doc_id = os.path.splitext(os.path.basename(args.input_file))[0]
-    tab_json = create_tab_format_json(doc_id, text, masked_text, masked_spans)
-    
-    # 결과 출력
-    print_results(text, masked_spans, tab_json, masked_text)
+        tab_json_list.append(create_tab_format_json(text['doc_id'], text['text'], masked_text, masked_spans, dataset_type="test", meta=meta, quality_checked=quality_checked, task=task))
+        masked_text_list.append(masked_text)
+        masked_spans_list.append(masked_spans)
+
 
     # 결과 저장
-    save_results(args, tab_json, masked_text)
+    save_results(args, tab_json_list)
 
 if __name__ == "__main__":
     main()
