@@ -101,7 +101,7 @@ def infer_entity_types(text, masked_spans, use_annotator=True):
     # IoU 기반 매칭으로 엔티티 타입 할당
     for span in masked_spans:
         ss, se = span["start_offset"], span["end_offset"]
-        best_label = "MASK"
+        best_label = "MISC"
         best_iou = 0.0
 
         for es, ee, lab in ent_spans:
@@ -120,7 +120,7 @@ def infer_entity_types(text, masked_spans, use_annotator=True):
         if best_iou >= 0.3:
             span["entity_type"] = best_label
         else:
-            span["entity_type"] = "MASK"
+            span["entity_type"] = "MISC"
 
     return masked_spans
 
