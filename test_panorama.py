@@ -208,6 +208,7 @@ def create_tab_format_json(json_data, masked_spans):
 
     return {
         "metadata": json_data['metadata'],
+        "text": json_data['text'],
         "entities": entities
     }
 
