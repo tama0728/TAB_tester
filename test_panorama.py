@@ -195,6 +195,8 @@ def create_tab_format_json(json_data, masked_spans):
     """TAB 형식의 JSON 구조를 생성합니다."""
     entities = []
     for span in masked_spans:
+        if span["span_text"] == "" or span["end_offset"] == 0:
+            continue
         entities.append({
             "span_text": span["span_text"],
             "entity_type": span["entity_type"],
