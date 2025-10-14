@@ -41,7 +41,7 @@ def load_model_and_tokenizer():
     model = model.to(device)
 
     # 가중치 불러오기
-    checkpoint = torch.load('longformer_experiments/long_model.pt', map_location=device)
+    checkpoint = torch.load('longformer_experiments/long_model_922.pt', map_location=device)
     model.load_state_dict(checkpoint)
 
     # 평가 모드 설정
@@ -87,8 +87,12 @@ def infer_entity_types(text, masked_spans, use_annotator=True):
     if use_annotator and Annotator is not None:
         # 프로젝트의 Annotator 사용 (권장)
         annotator = Annotator(spacy_model="en_core_web_md")
-        doc = annotator.annotate(text)
-        ent_spans = [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
+        # doc = annotator.annotate(text)
+        # ent_spans = [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
+        for span in masked_spans:
+            span["entity_type"] = annotator.annotate2(span["span_text"])
+            print("entity", span["span_text"], span["entity_type"])
+        return masked_spans
     elif spacy is not None:
         # 기본 spaCy NER 사용
         nlp = spacy.load("en_core_web_md")
@@ -98,6 +102,7 @@ def infer_entity_types(text, masked_spans, use_annotator=True):
         # 타입 추정 불가능한 경우 MASK로 유지
         return masked_spans
 
+    print("ent_spans", ent_spans)
     # IoU 기반 매칭으로 엔티티 타입 할당
     for span in masked_spans:
         ss, se = span["start_offset"], span["end_offset"]
@@ -117,7 +122,7 @@ def infer_entity_types(text, masked_spans, use_annotator=True):
                 best_label = lab if isinstance(lab, str) else str(lab)
 
         # IoU가 0.3 이상일 때만 타입 변경
-        if best_iou >= 0.3:
+        if best_iou >= 0.0:
             span["entity_type"] = best_label
         else:
             span["entity_type"] = "MISC"
@@ -133,8 +138,15 @@ def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores,
 
     for i, (pred, offset, conf) in enumerate(zip(predictions, offset_mapping, confidence_scores)):
         # 예측이 MASK이고 실제 텍스트에 해당하는 토큰인 경우
+        # if pred > 0:
+        #     print("i", i)
+        #     print("pred", pred)
+        #     print("offset", offset)
+        #     print("conf", conf)
+        #     print("text", text[offset[0]:offset[1]])
+        # print("pred", pred, conf, text[offset[0]:offset[1]], i, offset)
         if pred > 0 and offset[0] is not None and offset[1] is not None:
-            if current_span is None:
+            if current_span is None and conf >= 0.55:
                 # 새로운 마스킹 구간 시작
                 current_span = {
                     "entity_type": "MISC",
@@ -152,7 +164,7 @@ def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores,
                     "start_token": i,
                     "end_token": i
                 }
-            else:
+            elif current_span is not None:
                 # 기존 구간 확장
                 current_span["end_offset"] = offset[1]
                 current_span["end_token"] = i
@@ -161,11 +173,20 @@ def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores,
         else:
             # 마스킹 구간 종료
             if current_span is not None:
-                current_span["span_text"] = text[current_span["start_offset"]:current_span["end_offset"]]
-                masked_spans.append(current_span)
-                current_span = None
-                entity_counter += 1
-                mention_counter += 1
+                if conf >= 0.55 and predictions[i-1] > 0 and predictions[i+1 if i < len(predictions) - 1 else i] > 0:
+                    print("extend", i)
+                    # 기존 구간 확장
+                    current_span["end_offset"] = offset[1]
+                    current_span["end_token"] = i
+                    current_span["confidence"] = max(current_span["confidence"], float(conf))
+                    current_span["tokens"].append(i)
+                else:
+                    current_span["span_text"] = text[current_span["start_offset"]:current_span["end_offset"]]
+                    masked_spans.append(current_span)
+                    print("end", i, current_span["span_text"])
+                    current_span = None
+                    entity_counter += 1
+                    mention_counter += 1
 
     # 마지막 구간 처리
     if current_span is not None:
@@ -309,7 +330,6 @@ def main():
         # 토큰화 및 예측
         print("Tokenizing text and running inference...")
         tokens, predictions, confidence_scores = tokenize_and_predict(json_data['text'], model, tokenizer, device)
-        print("Predictions shape:", predictions.shape)
 
         # 엔티티 처리
         print("Processing entities...")

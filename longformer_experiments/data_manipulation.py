@@ -25,7 +25,7 @@ Modify the json files so as to be used easier with the data_handling script
 We collapse all annotators decisions, and consider them all as equally correct training examples
  """
 
-with open('echr_train.json', "r", encoding="utf-8") as f1, open('echr_dev.json', "r", encoding="utf-8") as f2, open('echr_test.json', "r", encoding="utf-8") as f3:
+with open('echr_train_1001.json', "r", encoding="utf-8") as f1, open('echr_dev_1001.json', "r", encoding="utf-8") as f2, open('echr_test_1001.json', "r", encoding="utf-8") as f3:
 
     train = json.load(f1)
     dev = json.load(f2)

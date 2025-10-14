@@ -71,7 +71,59 @@ class Annotator:
     def annotate(self, text):
         doc = self.nlp(text)
         return self._annotate(doc)
-            
+    
+    def annotate2(self, text):
+        doc = self.nlp(text)
+        # return doc.ents[0].label_ if doc.ents else "KKK"
+        if doc.ents and doc.ents[0].label_ != "PRODUCT" and doc.ents[0].label_ != "EVENT" and doc.ents[0].label_ != "WORK_OF_ART" and doc.ents[0].label_ != "MISC":
+            label = doc.ents[0].label_
+            print("label", text, label)
+            if text.count("@") > 0 and text.count(".") > 0:
+                label = "CODE"
+            elif label=="GPE":
+                if "Kingdom of" in text or "Republic of" in text:
+                    label = "ORG"
+                else:
+                    label = "LOC"
+            elif label in {"LANGUAGE", "NORP"}: 
+                label = "DEM"
+            elif label in {"LOC", "FAC"}:
+                label = "LOC"
+            elif label in {"PRODUCT", "EVENT", "WORK_OF_ART"}:
+                label = "MISC"
+            elif label in "ORG":
+                label = "ORG"
+            elif label in {"DATE", "TIME"}:
+                label = "DATETIME"
+            elif label in {"PERCENT", "QUANTITY", "MONEY"}:
+                label = "QUANTITY"
+            elif label in {"CARDINAL"}:
+                if ':' in text:
+                    label = "DATETIME"
+                elif '+' in text:
+                    label = "CODE"
+                elif '-' in text or '.' in text:
+                    label = "CODE"
+                elif sum(1 for c in text if c.isupper()) > 2:
+                    label = "ORG"
+                else:
+                    label = "CODE"
+            return label
+        else:
+            label = "PERSON"
+            if text.count("@") > 0 and text.count(".") > 0:
+                label = "CODE"
+            elif text.count(":") > 0:
+                label = "DATETIME"
+            elif text.count("+") > 0:
+                label = "CODE"
+            elif text.count("-") > 0 or text.count(".") > 0:
+                label = "CODE"
+            # count uppercase letters
+            if sum(1 for c in text if c.isupper()) > 2:
+                label = "ORG"
+            return label
+    
     def _annotate(self, doc):
 
         doc = remove_errors(doc)
@@ -252,7 +304,7 @@ def fix_overlaps(new_ents, doc):
         for i, (ent_start, ent_end, ent_label) in enumerate(new_ents2):
             for j, (ent2_start, ent2_end, ent2_label) in enumerate(new_ents2[i+1:i+5]):
 
-                if ent_end>ent2_start or (ent_end==ent2_start and ent_label==ent2_label):
+                if ent_end>ent2_start or ((ent2_start-ent_end) < 2 and ent_label==ent2_label):
                     del new_ents[i+j]
                     # If one label is MONEY, assume the merge is MONEY as well
                     if ent_label in {"MONEY", spacy.symbols.MONEY} or ent2_label in {"MONEY", spacy.symbols.MONEY}:  #type: ignore
