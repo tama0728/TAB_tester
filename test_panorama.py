@@ -212,7 +212,19 @@ def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores,
                         span2["span_text"] = span2["span_text"].split("|")[1]
                         span2["start_offset"] = span2["end_offset"] - len(span2["span_text"])
                         spans.append(span2)
+                    
+                    elif "/" in current_span["span_text"]:
+                        span1 = current_span.copy()
+                        span2 = current_span.copy()
                         
+                        span1["span_text"] = span1["span_text"].split("/")[0]
+                        span1["end_offset"] = span1["start_offset"] + len(span1["span_text"])
+                        spans.append(span1)
+                        
+                        span2["span_text"] = span2["span_text"].split("/")[1]
+                        span2["start_offset"] = span2["end_offset"] - len(span2["span_text"])
+                        spans.append(span2)
+                    
                     else:
                         spans.append(current_span)
                     
