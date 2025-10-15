@@ -182,11 +182,46 @@ def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores,
                     current_span["tokens"].append(i)
                 else:
                     current_span["span_text"] = text[current_span["start_offset"]:current_span["end_offset"]]
-                    masked_spans.append(current_span)
-                    print("end", i, current_span["span_text"])
+                    
+                    spans = []
+                    # | 분할
+                    if "|" in current_span["span_text"]:
+                        span1 = current_span.copy()
+                        span2 = current_span.copy()
+                        
+                        span1["span_text"] = span1["span_text"].split("|")[0]
+                        span1["end_offset"] = span1["start_offset"] + len(span1["span_text"])
+                        spans.append(span1)
+                        
+                        span2["span_text"] = span2["span_text"].split("|")[1]
+                        span2["start_offset"] = span2["end_offset"] - len(span2["span_text"])
+                        spans.append(span2)
+                        
+                    else:
+                        spans.append(current_span)
+                    
+                    for span in spans:
+                        if span["entity_type"] == "CODE" and ":" in span["span_text"]:
+                            span["span_text"] = span["span_text"].split(":")[1]
+                            span["start_offset"] = span["end_offset"] - len(span["span_text"])
+                        
+                        # 마스킹 구간 종료 후 트림 및 구간 변경
+                        tm_text = span["span_text"].lstrip()
+                        tm_text = tm_text.lstrip("'@.,;:!?\"()[]{}<>")
+                        span["start_offset"] = span["start_offset"] + (len(span["span_text"]) - len(tm_text))
+                        span["span_text"] = tm_text
+                        
+                        tm_text = span["span_text"].rstrip()
+                        tm_text = tm_text.rstrip("'@.,;:!?\"()[]{}<>")
+                        span["end_offset"] = span["end_offset"] - (len(span["span_text"]) - len(tm_text))
+                        span["span_text"] = tm_text
+                        
+                        masked_spans.append(span)
+                        print("end", i, span["span_text"])
                     current_span = None
                     entity_counter += 1
                     mention_counter += 1
+
 
     # 마지막 구간 처리
     if current_span is not None:
