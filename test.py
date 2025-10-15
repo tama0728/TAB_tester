@@ -8,6 +8,7 @@ import numpy as np
 import argparse
 import sys
 import os
+from byte_offset_utils import correct_offset_mapping, adjust_span_offsets, correct_offset_mapping_utf16, adjust_span_offsets_utf16, convert_utf16_offset_to_char_range
 import json
 
 # spaCy 및 Annotator 임포트
@@ -124,8 +125,16 @@ def infer_entity_types(text, masked_spans, use_annotator=True):
 
     return masked_spans
 
-def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores, text, doc_id="DOC1"):
+def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores, text, doc_id="DOC1", use_utf16_code_units=False):
     """TAB 데이터셋 형식으로 마스킹 구간을 찾습니다."""
+    # offset_mapping을 선택된 기준으로 수정
+    if use_utf16_code_units:
+        # Windows 메모장 기준 (UTF-16 코드 유닛)
+        offset_mapping = correct_offset_mapping_utf16(text, offset_mapping)
+    else:
+        # UTF-8 바이트 기준 (기본값)
+        offset_mapping = correct_offset_mapping(text, offset_mapping)
+    
     masked_spans = []
     current_span = None
     entity_counter = 1
@@ -161,7 +170,14 @@ def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores,
         else:
             # 마스킹 구간 종료
             if current_span is not None:
-                current_span["span_text"] = text[current_span["start_offset"]:current_span["end_offset"]]
+                # UTF-16 코드 유닛 기준 offset을 문자 offset으로 변환하여 span_text 추출
+                if use_utf16_code_units:
+                    char_start, char_end = convert_utf16_offset_to_char_range(
+                        text, current_span["start_offset"], current_span["end_offset"]
+                    )
+                    current_span["span_text"] = text[char_start:char_end]
+                else:
+                    current_span["span_text"] = text[current_span["start_offset"]:current_span["end_offset"]]
                 masked_spans.append(current_span)
                 current_span = None
                 entity_counter += 1
@@ -169,16 +185,23 @@ def find_masked_spans_tab_format(predictions, offset_mapping, confidence_scores,
 
     # 마지막 구간 처리
     if current_span is not None:
-        current_span["span_text"] = text[current_span["start_offset"]:current_span["end_offset"]]
+        # UTF-16 코드 유닛 기준 offset을 문자 offset으로 변환하여 span_text 추출
+        if use_utf16_code_units:
+            char_start, char_end = convert_utf16_offset_to_char_range(
+                text, current_span["start_offset"], current_span["end_offset"]
+            )
+            current_span["span_text"] = text[char_start:char_end]
+        else:
+            current_span["span_text"] = text[current_span["start_offset"]:current_span["end_offset"]]
         masked_spans.append(current_span)
 
     return masked_spans
 
-def process_entities(text, predictions, offset_mapping, confidence_scores, doc_id="TEST_DOC"):
+def process_entities(text, predictions, offset_mapping, confidence_scores, doc_id="TEST_DOC", use_utf16_code_units=False):
     """엔티티 처리 전체 파이프라인을 실행합니다."""
     # 마스킹 구간 찾기
     masked_spans = find_masked_spans_tab_format(
-        predictions, offset_mapping, confidence_scores, text, doc_id=doc_id
+        predictions, offset_mapping, confidence_scores, text, doc_id=doc_id, use_utf16_code_units=use_utf16_code_units
     )
 
     # 엔티티 타입 추정
