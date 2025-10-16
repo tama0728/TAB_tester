@@ -90,9 +90,18 @@ def infer_entity_types(text, masked_spans, use_annotator=True):
         annotator = Annotator(spacy_model="en_core_web_md")
         # doc = annotator.annotate(text)
         # ent_spans = [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
+        i = 1
         for span in masked_spans:
             span["entity_type"] = annotator.annotate2(span["span_text"])
-            print("entity", span["span_text"], span["entity_type"])
+            if span["entity_type"] == "PERSON" or span["entity_type"] == "CODE":
+                span["identifier_type"] = "direct"
+            else:
+                span["identifier_type"] = "quasi"
+            span["span_id"] = f"{i}"
+            span["entity_id"] = f"{i}"
+            
+            print("entity", span["span_text"], span["entity_type"], span["identifier_type"])
+            i += 1
         return masked_spans
     elif spacy is not None:
         # 기본 spaCy NER 사용
@@ -293,10 +302,10 @@ def create_tab_format_json(json_data, masked_spans):
             "entity_type": span["entity_type"],
             "start_offset": span["start_offset"],
             "end_offset": span["end_offset"],
-            "span_id": "",
-            "entity_id": "",
+            "span_id": span["span_id"],
+            "entity_id": span["entity_id"],
             "annotator": "",
-            "identifier_type": ""
+            "identifier_type": span["identifier_type"]
         })
 
     return {
